@@ -106,7 +106,50 @@ def Login(s, username, password):
     # all went well, return true
     return True
 
+def yEncode(char):
+    '''Encode one character using the yEnc algorithm.
+    
+    Return the yEnc encoded value and handle the special characters by appending
+    the escape character and encoding alternatly. One or two characters will be
+    returned each time this function is called.
+    '''
+    
+    # holds our output
+    output = ''
+    
+    # encode the string with yEnc
+    encoded = (ord(char) + 42) % 256
+    
+    # check for special characters
+    if encoded == 0x00:
+        encoded = (ord(char) + 64) % 256
+        output = '='
+    elif encoded == 0x0a:
+        encoded = (ord(char) + 64) % 256
+        output = '='
+    elif encoded == 0x0d:
+        encoded = (ord(char) + 64) % 256
+        output = '='
+    elif encoded == 0x3d:
+        encoded = (ord(char) + 64) % 256
+        output = '='
+    
+    # append the encoded value to the output string
+    output += chr(encoded)
+    
+    # return the value
+    return output
+
 if __name__ == '__main__':
+    
+    myFile = file('testfile.txt').read()
+    myEncoding = ''
+    
+    for char in myFile:
+        myEncoding += yEncode(char)
+    
+    quit
+    
     # connect to server
     conn = Connect(server, port, use_ssl)
     

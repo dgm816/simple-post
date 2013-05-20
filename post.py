@@ -30,6 +30,36 @@ def ParseResponse(data):
         return match.group(1), match.group(2)
     return None
 
+def GetServerResponse(s):
+    ''' Get server response.
+    
+    Get the response to a command send to the NNTP server and return it for use
+    by the calling function.
+    '''
+    
+    # receive server response
+    data = s.recv(1024)
+    
+    # parse server response
+    code, text = ParseResponse(data)
+    
+    return code, text
+
+def SendServerCommand(s, command):
+    ''' Send a command to the server and get the response.
+    
+    Send the command out to the server and pass the response back to the calling
+    function.
+    '''
+    
+    # send the command to the server
+    s.sendall(command)
+    
+    # get the response from the server
+    code, text = GetServerResponse(s)
+    
+    return code, text
+
 def Connect(server, port=119, use_ssl=False):
     '''Connect to NNTP server.
     
@@ -43,11 +73,8 @@ def Connect(server, port=119, use_ssl=False):
         s = ssl.wrap_socket(s)
     s.connect((server, port))
     
-    # receive server response
-    data = s.recv(1024)
-    
-    # parse server response
-    code, text = ParseResponse(data)
+    # get the servers connection string
+    code, text = GetServerResponse(s)
     
     # check for success
     if code != '200':
@@ -61,6 +88,22 @@ def Login(s, username, password):
     Login to the server using a username and password. Check for failure to
     login and intelligently handle server responses.
     '''
+    
+    # send the username to the server
+    code, text = SendServerCommand(s, "AUTHINFO USER " + username + "\r\n")
+    
+    # get code 381 if a password is required
+    if code != '381':
+        return None
+    
+    # send the password to the server
+    code, text = SendServerCommand(s, "AUTHINFO PASS " + password + "\r\n")
+    
+    # get code 281 if successfully logged in
+    if code != '281':
+        return None
+    
+    # all went well, return true
     return True
 
 if __name__ == '__main__':
@@ -70,12 +113,14 @@ if __name__ == '__main__':
     # check for failure
     if conn == None:
         print("Unable to connect to server.")
-        exit
+        quit
     
     # login to server
     if Login(conn, username, password) == None:
         print("Unable to login to server.")
-        exit
+        quit
+    
+    # quit server connection
     
     # close the connection
     conn.close()

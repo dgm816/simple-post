@@ -350,18 +350,6 @@ def yEncodeMultiple(filename, partSize, chars):
 
 if __name__ == '__main__':
     
-    #f = file("output.txt", "wb")
-    #f.write(header.replace('\n', '\r\n'))
-    #f.write(yEncodeMultiple('joystick.jpg', 11250, 128)[0])
-    #f.close()
-    
-    #f = file("output2.txt", "wb")
-    #f.write(header.replace('\n', '\r\n'))
-    #f.write(yEncodeMultiple('joystick.jpg', 11250, 128)[1])
-    #f.close()
-    
-    #sys.exit()
-    
     # connect to server
     conn = Connect(server, port, use_ssl)
     
@@ -376,11 +364,39 @@ if __name__ == '__main__':
         conn.close()
         sys.exit()
     
-    # post to server
-    if Post(conn, fromAddress, subject, newsgroups, yEncodeSingle("testfile.txt", defaultCharsPerLine), "testfile.txt") == None:
-        print("Unable to post to server.")
-        conn.close()
-        sys.exit()
+    # determine if we should post this multipart
+    filename = "testfile.txt"
+    size = os.path.getsize(filename)
+    
+    # sigle or multipart?
+    if size <= defaultPartSize:
+        
+        # post single part
+        article = yEncodeSingle(filename, defaultCharsPerLine)
+        fullSubject = '[' + subject + '] "' + filename + '" yEnc ' + str(size) + ' bytes'
+        if Post(conn, fromAddress, fullSubject, newsgroups, article, "testfile.txt") == None:
+            print("Unable to post to server.")
+            conn.close()
+            sys.exit()
+    
+    else:
+        
+        # post multipart
+        data = yEncodeMultiple(filename, defaultPartSize, defaultCharsPerLine)
+        currentPart = 1
+        numberParts = len(data)
+        
+        for article in data:
+            fullSubject = '[' + subject + '] "' + filename + '" yEnc (' + str(currentPart) + '/' + str(numberParts) + ') ' + str(size) + " bytes"
+            
+            # post a part
+            if Post(conn, fromAddress, fullSubject, newsgroups, article, "testfile.txt") == None:
+                print("Unable to post to server.")
+                conn.close()
+                sys.exit()
+                
+            # update for our next part
+            currentPart += 1
     
     # close the connection
     conn.close()

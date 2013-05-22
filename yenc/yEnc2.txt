@@ -1,0 +1,72 @@
+07-Nov-2001
+
+yEncode - additional specs (after discussions) 
+----------------------------------------------
+
+The maximum line length for a yEncoded file should be: 254 bytes.
+This permits Pascal implementations to handle one line in one string.
+(The line size will then be 254 or 255 - which is the maximum length for Pascal).
+
+However a yEnc decoder should be able to deal with smaller numbers
+until we are sure that such long lines do not cause trouble.
+
+Another proposal was to use only 63/64 bytes per line to stay within the 
+'usual' line size for Usenet messages.
+
+
+Some yEncoders might encode additional characters. So the decoders should be
+prepared to decode ALL escaped combinations with the 'default method':
+(subtract 64) from the character follwing the '=' (and then 42).
+
+
+It is _highly_ recommended to start the subject line with a dash followed
+by the filename (and the size + yEnc keyword). Comments should be
+added only _behind_ this block - and again seperated by a dash.
+
+
+It might be possible to avoid encoding of the TAB (dec. 9) character.
+However it is still included into the source code example.
+
+It might be possible to encode the DOT '.' character only in the first
+column. Another method would be to duplicate the DOT when the article
+is transmitted by NNTP. The dot is still encoded in the source code
+example. I love the straight forward conception. No dot can occur
+in the first column.
+
+
+
+
+
+Additional ideas of the author (some implemented into MyNews)
+-------------------------------------------------------------
+
+It might be a nice idea to add the CRC of posted files to the Subject-Line.
+This permits advanced news-readers to find out that a specific file
+is already locally available (and just a repost).
+
+
+It might be a nice idea to add additional database info about posted binaries.
+This would allow to store binaries as streams - together with additonal
+info - and not in the original format which never contains related context data.
+
+=ydata <database keyword> ': ' <description>
+=ydata title: "The stonehenge miracle"
+=ydata artist: "John Carpenter"
+=ydata creation: 20 Jun 1983
+=ydata newsgroup=alt.binaries.artpics
+=ydata url: http://www.carpenter.pers.uk
+=ybegin ...
+<data>
+=yend
+
+
+The "Lines:" header for yEncoded messages is still calculated as if
+UUencode would be used - and does NOT represent the real number of lines.
+It is difficlut to calculate the number of lines for a message in ahead.
+And it might be confusing for newsgroup-users if they see very small messages
+which are then very huge for download.
+So the number of lines is still calculated as:  "binary size / 45".
+(Plus a few preface text lines and management lines)
+
+
+to be continued...

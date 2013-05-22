@@ -200,13 +200,13 @@ def yEncodeData(data, chars=128):
         # check if we have a full line
         if len(line) >= chars:
             # save to output
-            output += line + "\n"
+            output += line + "\r\n"
             # clear the line
             line = ''
     
     # check if we have a partial line to append
     if len(line) > 0:
-        output += line + "\n"
+        output += line + "\r\n"
     
     # return our encoded and formatted data
     return output
@@ -233,13 +233,13 @@ def yEncodeSingle(filename, chars):
     crc = zlib.crc32(data)
     
     # attach the header
-    output = '=ybegin line=' + str(chars) + ' size=' + str(size) + ' name=' + filename + '\n'
+    output = '=ybegin line=' + str(chars) + ' size=' + str(size) + ' name=' + filename + '\r\n'
     
     # append yEnc data
     output += yEncodeData(data, chars)
     
     # attach the footer
-    output += '=yend size=' + str(size) + ' crc32=' + "%08x"%(crc & 0xFFFFFFFF) + '\n'
+    output += '=yend size=' + str(size) + ' crc32=' + "%08x"%(crc & 0xFFFFFFFF) + '\r\n'
     
     # return our encoded and formatted data
     return output
@@ -259,7 +259,7 @@ X-Newsreader: MyNews
 '''
     
     f = file("output.txt", "wb")
-    f.write(header)
+    f.write(header.replace('\n', '\r\n'))
     f.write(yEncodeSingle('testfile.txt', 128))
     
     sys.exit()

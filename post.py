@@ -4,10 +4,12 @@ This is intended to be a very simple python NNTP posting application that can
 be fully implemented within a single python file.
 '''
 
+import os
 import re
 import socket
 import ssl
 import sys
+import zlib
 
 server = 'news.example.com'
 port = 119
@@ -172,6 +174,10 @@ def yEncode(char, first=False, last=False):
 def yEncodeData(data, chars=128):
     '''Encode an entire data chunk obeying the formatting rules.
     
+    Using the yEncode function to do the actual work of encoding, yEncodeData
+    will pass along things like first/last character flags which will cause
+    yEncode to use alternate encoding (encode spaces/tabs at the begining/end
+    and encode periods at the start of a line).
     '''
     
     # holds our output
@@ -205,6 +211,39 @@ def yEncodeData(data, chars=128):
     # return our encoded and formatted data
     return output
 
+def yEncodeSingle(filename, chars):
+    '''Encode a single (non-multipart) yEnc message.
+    
+    Useing yEncodeData we will encode the data passed to us into a yEnc message
+    with header/footer attached.
+    
+    This function does not support multi-part yEnc messages.
+    '''
+    
+    # holds our output
+    output = ''
+    
+    # get the size of the file.
+    size = os.path.getsize(filename)
+    
+    # read in the file
+    data = file(filename, 'rb').read()
+    
+    # store crc of data before encoding
+    crc = zlib.crc32(data)
+    
+    # attach the header
+    output = '=ybegin line=' + str(chars) + ' size=' + str(size) + ' name=' + filename + '\n'
+    
+    # append yEnc data
+    output += yEncodeData(data, chars)
+    
+    # attach the footer
+    output += '=yend size=' + str(size) + ' crc32=' + "%08x"%(crc & 0xFFFFFFFF) + '\n'
+    
+    # return our encoded and formatted data
+    return output
+
 if __name__ == '__main__':
     
     header = '''From: develop@winews.net
@@ -217,17 +256,11 @@ Lines: 16
 X-Newsreader: MyNews
 
 -- 
-=ybegin line=128 size=584 name=testfile.txt 
 '''
-
-    footer = '''=yend size=584 crc32=ded29f4f
-'''
-    myFile = file('testfile.txt', 'rb').read()
     
     f = file("output.txt", "wb")
     f.write(header)
-    f.write(yEncodeData(myFile))
-    f.write(footer)
+    f.write(yEncodeSingle('testfile.txt', 128))
     
     sys.exit()
     

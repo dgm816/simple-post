@@ -244,6 +244,72 @@ def yEncodeSingle(filename, chars):
     # return our encoded and formatted data
     return output
 
+def yEncodeMultiple(filename, partSize, chars):
+    '''Encode a multipart yEnc message.
+    
+    Useing yEncodeData we will encode the data passed to us into a number of
+    yEnc messages with headers/footers attached.
+    
+    This function only supports multi-part yEnc messages.
+    '''
+    
+    # holds our output
+    output = []
+    
+    # get the size of the file.
+    size = os.path.getsize(filename)
+    
+    # read in the file
+    data = file(filename, 'rb').read()
+    
+    # determine number of parts
+    totalParts = size / partSize
+    if (size % partSize) != 0:
+        totalParts += 1
+    
+    # store crc of data before encoding
+    crc = zlib.crc32(data)
+    
+    # loop for each part
+    for i in range(totalParts):
+        
+        # determine our start/stop offsets
+        startOffset = i * partSize
+        stopOffset = (i+1) * partSize
+        if stopOffset > size:
+            stopOffset = size
+        
+        # grab the portion of the data for this part
+        partData = data[startOffset:stopOffset]
+        
+        # determine the part size
+        partSize = len(partData)
+        
+        # store crc of this parts data before encoding
+        pcrc = zlib.crc32(partData)
+        
+        # attach the header
+        partOutput = '=ybegin part=' + str(i+1) + ' line=' + str(chars) + ' size=' + str(size) + ' name=' + filename + '\r\n'
+        
+        # attach the part header
+        partOutput += '=ypart begin=' + str(startOffset+1) + ' end=' + str(stopOffset) + '\r\n'
+        
+        # append yEnc data
+        partOutput += yEncodeData(partData, chars)
+        
+        # attach the footer
+        # part=10 pcrc32=12a45c78
+        partOutput += '=yend size=' + str(partSize) + ' part=' + str(i+1) + ' pcrc=' + "%08x"%(pcrc & 0xFFFFFFFF) + ' crc32=' + "%08x"%(crc & 0xFFFFFFFF) + '\r\n'
+        
+        # append to our output list
+        output.append(partOutput)
+    
+    # return our encoded and formatted data
+    return output
+
+'''=ybegin part=1 line=128 size=19338 name=joystick.jpg 
+=ypart begin=1 end=11250'''
+
 if __name__ == '__main__':
     
     header = '''From: develop@winews.net
@@ -260,7 +326,13 @@ X-Newsreader: MyNews
     
     f = file("output.txt", "wb")
     f.write(header.replace('\n', '\r\n'))
-    f.write(yEncodeSingle('testfile.txt', 128))
+    f.write(yEncodeMultiple('joystick.jpg', 11250, 128)[0])
+    f.close()
+    
+    f = file("output2.txt", "wb")
+    f.write(header.replace('\n', '\r\n'))
+    f.write(yEncodeMultiple('joystick.jpg', 11250, 128)[1])
+    f.close()
     
     sys.exit()
     

@@ -11,11 +11,25 @@ import ssl
 import sys
 import zlib
 
+# Begin configuration area
+
 server = 'news.example.com'
 port = 119
 username = 'username'
 password = 'password'
 use_ssl = False
+
+fromAddress = "Anonymous User <anonymous@example.com>"
+subject = "This Is Only A Test"
+newsgroups = "test"
+
+# with around 3% increase in size for encoding this should leave us with around
+# 2012 lines or so.
+# figure your own values with:   (defaultPartSize * 1.03) / defaultCharsPerLine
+defaultCharsPerLine = 256
+defaultPartSize = 500000
+
+# End configuration area
 
 def ParseResponse(data):
     '''Parse response from server.
@@ -109,6 +123,33 @@ def Login(s, username, password):
     # all went well, return true
     return True
 
+def Post(s, fromHeader, subjectHeader, newsgroupsHeader, article, filename):
+    '''Post a binary article to a newsgroup.
+    
+    '''
+    
+    # send the post command to the server
+    code, text = SendServerCommand(s, "POST\r\n")
+    
+    # get code 340 if we're ok to post
+    if code != '340':
+        return None
+    
+    s.sendall("From: " + fromHeader + "\r\n")
+    s.sendall("Subject: " + subjectHeader + "\r\n")
+    s.sendall("Newsgroups: " + newsgroupsHeader + "\r\n")
+    s.sendall("\r\n")
+    s.sendall(article)
+    
+    # send our end of transmission character
+    code, text = SendServerCommand(s, ".\r\n")
+    
+    # get code 240 if the server accepted our post
+    if code != '240':
+        return None
+    
+    return True
+
 def yEncode(char, first=False, last=False):
     '''Encode one character using the yEnc algorithm.
     
@@ -171,7 +212,7 @@ def yEncode(char, first=False, last=False):
     # return the value
     return output
 
-def yEncodeData(data, chars=128):
+def yEncodeData(data, chars):
     '''Encode an entire data chunk obeying the formatting rules.
     
     Using the yEncode function to do the actual work of encoding, yEncodeData
@@ -307,34 +348,19 @@ def yEncodeMultiple(filename, partSize, chars):
     # return our encoded and formatted data
     return output
 
-'''=ybegin part=1 line=128 size=19338 name=joystick.jpg 
-=ypart begin=1 end=11250'''
-
 if __name__ == '__main__':
     
-    header = '''From: develop@winews.net
-Newsgroups: yenc
-Date: 27 Oct 2001 15:07:44 +0200
-Subject: yEnc-Prefix: "testfile.txt" 584 yEnc bytes - yEnc test (1)
-Message-ID: <4407f.ra1200@liebchen.winews.net>
-Path: liebchen.winews.net!not-for-mail
-Lines: 16
-X-Newsreader: MyNews
-
--- 
-'''
+    #f = file("output.txt", "wb")
+    #f.write(header.replace('\n', '\r\n'))
+    #f.write(yEncodeMultiple('joystick.jpg', 11250, 128)[0])
+    #f.close()
     
-    f = file("output.txt", "wb")
-    f.write(header.replace('\n', '\r\n'))
-    f.write(yEncodeMultiple('joystick.jpg', 11250, 128)[0])
-    f.close()
+    #f = file("output2.txt", "wb")
+    #f.write(header.replace('\n', '\r\n'))
+    #f.write(yEncodeMultiple('joystick.jpg', 11250, 128)[1])
+    #f.close()
     
-    f = file("output2.txt", "wb")
-    f.write(header.replace('\n', '\r\n'))
-    f.write(yEncodeMultiple('joystick.jpg', 11250, 128)[1])
-    f.close()
-    
-    sys.exit()
+    #sys.exit()
     
     # connect to server
     conn = Connect(server, port, use_ssl)
@@ -350,7 +376,11 @@ X-Newsreader: MyNews
         conn.close()
         sys.exit()
     
-    # quit server connection
+    # post to server
+    if Post(conn, fromAddress, subject, newsgroups, yEncodeSingle("testfile.txt", defaultCharsPerLine), "testfile.txt") == None:
+        print("Unable to post to server.")
+        conn.close()
+        sys.exit()
     
     # close the connection
     conn.close()

@@ -4,6 +4,8 @@ This is intended to be a very simple python NNTP posting application that can
 be fully implemented within a single python file.
 '''
 
+import argparse
+import glob
 import os
 import re
 import socket
@@ -28,6 +30,15 @@ newsgroups = "test"
 # figure your own values with:   (defaultPartSize * 1.03) / defaultCharsPerLine
 defaultCharsPerLine = 256
 defaultPartSize = 500000
+
+# general layout of subject lines
+#   {s} - subject passed
+#   {f} - file name
+#   {b} - bytes (size of file)
+#   {c} - current part
+#   {t} - total parts
+subject_single_template = '[{s}] "{f}" yEnc {b} bytes'
+subject_multi_template = '[{s}] "{f}" yEnc ({c}/{t}) {b} bytes'
 
 # End configuration area
 
@@ -350,6 +361,53 @@ def yEncodeMultiple(filename, partSize, chars):
 
 if __name__ == '__main__':
     
+    # argument parsing comes first
+    parser = argparse.ArgumentParser(description="post a yEnc binary to a newsgroup group")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
+    group.add_argument("-q", "--quiet", help="disable output", action="store_true")
+    parser.add_argument("file", help="file(s) to post", nargs="+")
+    parser.add_argument("-f", "--from", help="from line of the post")
+    parser.add_argument("-s", "--subject", help="subject of the post")
+    parser.add_argument("-n", "--newsgroups", help="newsgroup(s) to post to (comma seperated)")
+    parser.add_argument("--host", help="hostname of server")
+    parser.add_argument("--port", help="port for posting server", type=int)
+    parser.add_argument("--ssl", help="use ssl for connecting to server", action="store_true")
+    parser.add_argument("--user", help="username for posting server")
+    parser.add_argument("--pass", help="password for posting server")
+    parser.add_argument("--chars", help="set the max characters per line value")
+    parser.add_argument("--size", help="set the max size of each part posted")
+    args = parser.parse_args()
+    
+    # override any passed values
+    if getattr(args, 'from'):
+        fromAddress = getattr(args, 'from')
+    if args.subject:
+        subject = args.subject
+    if args.newsgroups:
+        newsgroups = args.newsgroups
+    if args.host:
+        server = args.host
+    if args.port:
+        port = args.port
+    if args.ssl:
+        use_ssl = True
+    if args.user:
+        username = args.user
+    if getattr(args, 'pass'):
+        password = getattr(args, 'pass')
+    if args.chars:
+        defaultCharsPerLine = args.chars
+    if args.size:
+        defaultPartSize = args.size
+    
+    # holds our files
+    files = []
+    
+    # expand any patterns pass as files
+    for pattern in args.file:
+        files += glob.glob(pattern)
+    
     # connect to server
     conn = Connect(server, port, use_ssl)
     
@@ -364,39 +422,54 @@ if __name__ == '__main__':
         conn.close()
         sys.exit()
     
-    # determine if we should post this multipart
-    filename = "testfile.txt"
-    size = os.path.getsize(filename)
-    
-    # sigle or multipart?
-    if size <= defaultPartSize:
+    # loop over all the input files
+    for filename in files:
         
-        # post single part
-        article = yEncodeSingle(filename, defaultCharsPerLine)
-        fullSubject = '[' + subject + '] "' + filename + '" yEnc ' + str(size) + ' bytes'
-        if Post(conn, fromAddress, fullSubject, newsgroups, article, "testfile.txt") == None:
-            print("Unable to post to server.")
-            conn.close()
-            sys.exit()
-    
-    else:
+        # determine if we should post this multipart
+        size = os.path.getsize(filename)
         
-        # post multipart
-        data = yEncodeMultiple(filename, defaultPartSize, defaultCharsPerLine)
-        currentPart = 1
-        numberParts = len(data)
-        
-        for article in data:
-            fullSubject = '[' + subject + '] "' + filename + '" yEnc (' + str(currentPart) + '/' + str(numberParts) + ') ' + str(size) + " bytes"
+        # sigle or multipart?
+        if size <= defaultPartSize:
             
-            # post a part
-            if Post(conn, fromAddress, fullSubject, newsgroups, article, "testfile.txt") == None:
+            # build single part
+            article = yEncodeSingle(filename, defaultCharsPerLine)
+            
+            # build subject
+            mySubject = subject_single_template
+            mySubject = mySubject.replace('{s}', subject)
+            mySubject = mySubject.replace('{f}', filename)
+            mySubject = mySubject.replace('{b}', str(size))
+            
+            # post single part
+            if Post(conn, fromAddress, mySubject, newsgroups, article, filename) == None:
                 print("Unable to post to server.")
                 conn.close()
                 sys.exit()
+        
+        else:
+            
+            # build multipart
+            data = yEncodeMultiple(filename, defaultPartSize, defaultCharsPerLine)
+            currentPart = 1
+            totalParts = len(data)
+            
+            for article in data:
+                # build a subject for this part
+                mySubject = subject_multi_template
+                mySubject = mySubject.replace('{s}', subject)
+                mySubject = mySubject.replace('{f}', filename)
+                mySubject = mySubject.replace('{c}', str(currentPart))
+                mySubject = mySubject.replace('{t}', str(totalParts))
+                mySubject = mySubject.replace('{b}', str(size))
                 
-            # update for our next part
-            currentPart += 1
+                # post a part
+                if Post(conn, fromAddress, mySubject, newsgroups, article, filename) == None:
+                    print("Unable to post to server.")
+                    conn.close()
+                    sys.exit()
+                    
+                # update for our next part
+                currentPart += 1
     
     # close the connection
     conn.close()

@@ -1,8 +1,8 @@
-'''simple-post
+"""simple-post
 
 This is intended to be a very simple python NNTP posting application that can
 be fully implemented within a single python file.
-'''
+"""
 
 import argparse
 import glob
@@ -42,15 +42,16 @@ subject_multi_template = '[{s}] "{f}" yEnc ({c}/{t}) {b} bytes'
 
 # End configuration area
 
+
 def ParseResponse(data):
-    '''Parse response from server.
-    
+    """Parse response from server.
+
     Pass in a single line from the server and it will be broken into its
     component parts (if it is formatted properly). Both the server code as well
     as the string from the response will be returned to the caller.
-    
+
     If the format is not recognized None will be returned.
-    '''
+    """
     
     # break apart the response code and (optionally) the rest of the line
     match = re.match(r'(\d+)(?: (.*))?\r\n', data)
@@ -58,12 +59,13 @@ def ParseResponse(data):
         return match.group(1), match.group(2)
     return None
 
+
 def GetServerResponse(s):
-    ''' Get server response.
-    
+    """ Get server response.
+
     Get the response to a command send to the NNTP server and return it for use
     by the calling function.
-    '''
+    """
     
     # receive server response
     data = s.recv(1024)
@@ -73,12 +75,13 @@ def GetServerResponse(s):
     
     return code, text
 
+
 def SendServerCommand(s, command):
-    ''' Send a command to the server and get the response.
-    
+    """ Send a command to the server and get the response.
+
     Send the command out to the server and pass the response back to the calling
     function.
-    '''
+    """
     
     # send the command to the server
     s.sendall(command)
@@ -88,16 +91,17 @@ def SendServerCommand(s, command):
     
     return code, text
 
+
 def Connect(server, port=119, use_ssl=False):
-    '''Connect to NNTP server.
-    
+    """Connect to NNTP server.
+
     Using the server address, port, and a flag to use ssl, we will connect to
     the server and parse the response from the server using standard sockets.
-    '''
+    """
     
     # create a socket object and connect
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    if use_ssl == True:
+    if use_ssl:
         s = ssl.wrap_socket(s)
     s.connect((server, port))
     
@@ -110,12 +114,13 @@ def Connect(server, port=119, use_ssl=False):
     else:
         return s
 
+
 def Login(s, username, password):
-    '''Login to server.
-    
+    """Login to server.
+
     Login to the server using a username and password. Check for failure to
     login and intelligently handle server responses.
-    '''
+    """
     
     # send the username to the server
     code, text = SendServerCommand(s, "AUTHINFO USER " + username + "\r\n")
@@ -134,10 +139,11 @@ def Login(s, username, password):
     # all went well, return true
     return True
 
+
 def Post(s, fromHeader, subjectHeader, newsgroupsHeader, article, filename):
-    '''Post a binary article to a newsgroup.
-    
-    '''
+    """Post a binary article to a newsgroup.
+
+    """
     
     # send the post command to the server
     code, text = SendServerCommand(s, "POST\r\n")
@@ -161,24 +167,25 @@ def Post(s, fromHeader, subjectHeader, newsgroupsHeader, article, filename):
     
     return True
 
+
 def yEncode(char, first=False, last=False):
-    '''Encode one character using the yEnc algorithm.
-    
+    """Encode one character using the yEnc algorithm.
+
     Return the yEnc encoded value and handle the special characters by appending
-    the escape character and encoding alternatly. One or two characters will be
+    the escape character and encoding alternately. One or two characters will be
     returned each time this function is called.
-    
+
     The 'first' argument has been designed so we encode the characters properly
     if it is the first character of a new line. This will encode period/space/
-    tab characters.  Also, passing the 'first' flag inheriently will enable the
+    tab characters.  Also, passing the 'first' flag inherently will enable the
     'last' flag (to pick up space/tab characters).
-    
+
     The 'last' argument has been designed to encode the space/tab characters
     properly when the last character of the line is being encoded.
-    '''
+    """
     
     # check if special rules are being used
-    if first == True:
+    if first:
         last = True
     
     # holds our output
@@ -223,14 +230,15 @@ def yEncode(char, first=False, last=False):
     # return the value
     return output
 
+
 def yEncodeData(data, chars):
-    '''Encode an entire data chunk obeying the formatting rules.
-    
+    """Encode an entire data chunk obeying the formatting rules.
+
     Using the yEncode function to do the actual work of encoding, yEncodeData
     will pass along things like first/last character flags which will cause
     yEncode to use alternate encoding (encode spaces/tabs at the begining/end
     and encode periods at the start of a line).
-    '''
+    """
     
     # holds our output
     line = ''
@@ -263,15 +271,16 @@ def yEncodeData(data, chars):
     # return our encoded and formatted data
     return output
 
+
 def yEncodeSingle(filename, chars):
-    '''Encode a single (non-multipart) yEnc message.
-    
+    """Encode a single (non-multipart) yEnc message.
+
     Useing yEncodeData we will encode the data passed to us into a yEnc message
     with header/footer attached.
-    
+
     This function does not support multi-part yEnc messages.
-    '''
-    
+    """
+
     # holds our output
     output = ''
     
@@ -296,14 +305,15 @@ def yEncodeSingle(filename, chars):
     # return our encoded and formatted data
     return output
 
+
 def yEncodeMultiple(filename, partSize, chars):
-    '''Encode a multipart yEnc message.
-    
+    """Encode a multipart yEnc message.
+
     Useing yEncodeData we will encode the data passed to us into a number of
     yEnc messages with headers/footers attached.
-    
+
     This function only supports multi-part yEnc messages.
-    '''
+    """
     
     # holds our output
     output = []
@@ -359,6 +369,7 @@ def yEncodeMultiple(filename, partSize, chars):
     # return our encoded and formatted data
     return output
 
+
 if __name__ == '__main__':
     
     # argument parsing comes first
@@ -412,12 +423,12 @@ if __name__ == '__main__':
     conn = Connect(server, port, use_ssl)
     
     # check for failure
-    if conn == None:
+    if conn is None:
         print("Unable to connect to server.")
         sys.exit()
     
     # login to server
-    if Login(conn, username, password) == None:
+    if Login(conn, username, password) is None:
         print("Unable to login to server.")
         conn.close()
         sys.exit()
@@ -441,7 +452,7 @@ if __name__ == '__main__':
             mySubject = mySubject.replace('{b}', str(size))
             
             # post single part
-            if Post(conn, fromAddress, mySubject, newsgroups, article, filename) == None:
+            if Post(conn, fromAddress, mySubject, newsgroups, article, filename) is None:
                 print("Unable to post to server.")
                 conn.close()
                 sys.exit()
@@ -463,7 +474,7 @@ if __name__ == '__main__':
                 mySubject = mySubject.replace('{b}', str(size))
                 
                 # post a part
-                if Post(conn, fromAddress, mySubject, newsgroups, article, filename) == None:
+                if Post(conn, fromAddress, mySubject, newsgroups, article, filename) is None:
                     print("Unable to post to server.")
                     conn.close()
                     sys.exit()

@@ -10,6 +10,11 @@ simple to allow for quick posting to NNTP servers from the command line.
 Additional features may be added as time passes to enhance the basic
 functionality of the program.
 
+License
+-------
+
+Licensed under MIT. See 'LICENSE' file for full license text.
+
 Quick Start
 -----------
 
